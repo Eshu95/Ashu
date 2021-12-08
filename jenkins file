@@ -1,6 +1,15 @@
 pipeline {
      agent any
-     
+	 
+     environment {
+
+      sonar_url = 'http://172.31.7.213:9000'
+      sonar_username = 'admin'
+      sonar_password = 'admin'
+      nexus_url = '172.31.7.213:8081'
+      artifact_version = '4.0.0'
+
+        }
     tools {
         // Install the Maven version configured as "M3" and add it to the path.
          jdk 'java8'
@@ -19,5 +28,20 @@ pipeline {
                  sh  'mvn clean install'
                 }
             }
-        }
+		 stage ('sonarqube') {
+  		   steps {
+            withSonarQubeEnv('sonarqube') {
+            sh '''
+           mvn -e -B sonar:sonar -Dsonar.java.source=1.8 -Dsonar.host.url="${sonar_url}" -Dsonar.login="${sonar_username}" -Dsonar.password="${sonar_password}" -Dsonar.sourceEncoding=UTF-8
+           '''
+                    }
+                }
+            }
+		 stage ('Publish Artifact') {
+            steps {
+            nexusArtifactUploader artifacts: [[artifactId: 'gameoflife', classifier: '', file: "/var/lib/jenkins/workspace/pipeline jobs/gameoflife-build/target/gameoflife-build-1.0-SNAPSHOT.jar", type: 'jar']], credentialsId: '4932f91d-29a2-46c5-835e-7ed69d8e8ed2', groupId: 'com.wakaleo.gameoflife', nexusUrl: "${nexus_url}", nexusVersion: 'nexus3', protocol: 'http', repository: 'release', version: "${artifact_version}"
+         archiveArtifacts '**/*.jar'
+                }
+            }
+		} 
     }
